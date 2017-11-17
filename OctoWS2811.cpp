@@ -34,17 +34,21 @@ uint8_t OctoWS2811::params;
 DMAChannel OctoWS2811::dma1;
 DMAChannel OctoWS2811::dma2;
 DMAChannel OctoWS2811::dma3;
+bool OctoWS2811::toggle;
+bool OctoWS2811::interlaced;
 
 static uint8_t ones = 0xFF;
 static volatile uint8_t update_in_progress = 0;
 static uint32_t update_completed_at = 0;
 
-OctoWS2811::OctoWS2811(uint32_t numPerStrip, void *frameBuf, void *drawBuf, uint8_t config)
+OctoWS2811::OctoWS2811(uint32_t numPerStrip, void *frameBuf, void *drawBuf, uint8_t config, bool interlacedMode)
 {
-	stripLen = numPerStrip;
+	interlaced = interlacedMode;
+	stripLen = numPerStrip - interlaced;
 	frameBuffer = frameBuf;
 	drawBuffer = drawBuf;
 	params = config;
+        toggle = false;
 }
 
 // Waveform timing: these set the high time for a 0 and 1 bit, as a fraction of
@@ -250,7 +254,19 @@ void OctoWS2811::show(void)
 	if (drawBuffer != frameBuffer) {
 		// TODO: this could be faster with DMA, especially if the
 		// buffers are 32 bit aligned... but does it matter?
-		memcpy(frameBuffer, drawBuffer, stripLen * 24);
+
+		// Flip between frames for "interlaced" mode
+		toggle = !toggle;
+		if (interlaced && toggle)
+		{
+			// We're in "interlaced" mode and in the off-frame
+			// so shuffle everything over by one LED
+			memcpy(frameBuffer, drawBuffer+24, stripLen * 24);
+		}
+		else
+		{
+			memcpy(frameBuffer, drawBuffer, stripLen * 24);
+		}
 	}
 	// wait for WS2811 reset
 	while (micros() - update_completed_at < 300) ;

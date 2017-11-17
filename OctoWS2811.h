@@ -52,7 +52,14 @@
 
 class OctoWS2811 {
 public:
-	OctoWS2811(uint32_t numPerStrip, void *frameBuf, void *drawBuf, uint8_t config = WS2811_GRB);
+	// When interlaced is true, the last LED isn't used for normal operation
+	// but is used to let us shuffle the draw buffer back and forth by one
+	// LED each time OctoWS2811::show() is called.  This lets us draw to
+	// every other LED but have all of the LEDs on the strip light up
+	// It's a simple way to halve the power requirements for the strips
+	// You should call OctoWS2811::show() at a frequency over 60Hz in order
+	// to have it display nicely
+	OctoWS2811(uint32_t numPerStrip, void *frameBuf, void *drawBuf, uint8_t config = WS2811_GRB, bool interlacedMode =false);
 	void begin(void);
 
 	void setPixel(uint32_t num, int color);
@@ -79,6 +86,8 @@ private:
 	static uint8_t params;
 	static DMAChannel dma1, dma2, dma3;
 	static void isr(void);
+	static bool interlaced;
+        static bool toggle;
 };
 
 #endif
